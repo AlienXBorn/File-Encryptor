@@ -64,24 +64,28 @@ async function decryptFile() {
     }
   };
   reader.onload = async function(event) {
-    const decryptedData = await decrypt(event.target.result, password);
-    if (decryptedData !== null) {
-      // Decompress the decrypted data
-      const decompressedData = pako.inflate(decryptedData);
-      const blob = new Blob([decompressedData], { type: 'application/octet-stream' });
-      const downloadLink = document.getElementById('downloadLink');
-      downloadLink.href = URL.createObjectURL(blob);
-      downloadLink.download = file.name.replace('.encrypted', '');
-      downloadLink.innerHTML = `Download ${file.name.replace('.encrypted', '')}`;
-      downloadLink.style.display = 'block';
-    } else {
-      alert('Decryption failed. Please check your password and try again.');
+    try {
+      const decryptedData = await decrypt(event.target.result, password);
+      if (decryptedData !== null) {
+        // Decompress the decrypted data
+        const decompressedData = pako.inflate(decryptedData);
+        const blob = new Blob([decompressedData], { type: 'application/octet-stream' });
+        const downloadLink = document.getElementById('downloadLink');
+        downloadLink.href = URL.createObjectURL(blob);
+        downloadLink.download = file.name.replace('.encrypted', '');
+        downloadLink.innerHTML = `Download ${file.name.replace('.encrypted', '')}`;
+        downloadLink.style.display = 'block';
+      }
+    } catch (error) {
+      // Show warning message if decryption fails
+      alert('Please check the password you provided!');
     }
     // Hide progress indicator after decryption
     document.getElementById('decryptionProgress').style.display = 'none';
   };
   reader.readAsArrayBuffer(file);
 }
+
 
 async function encrypt(data, password) {
   const encoder = new TextEncoder();
@@ -184,4 +188,3 @@ function copyPassword() {
   document.execCommand("copy");
   alert("Password copied to clipboard!");
 }
-
