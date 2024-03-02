@@ -1,6 +1,3 @@
-// Add this line to include the pako library
-// <script src="https://cdnjs.cloudflare.com/ajax/libs/pako/2.0.3/pako.min.js"></script>
-
 async function encryptFile() {
   const fileInput = document.getElementById('fileInput');
   const file = fileInput.files[0];
@@ -23,9 +20,7 @@ async function encryptFile() {
     }
   };
   reader.onload = async function(event) {
-    // Compress the file data
-    const compressedData = pako.deflate(event.target.result);
-    const encryptedData = await encrypt(compressedData, password);
+    const encryptedData = await encrypt(event.target.result, password);
     if (encryptedData !== null) {
       const blob = new Blob([encryptedData], { type: 'application/octet-stream' });
       const downloadLink = document.getElementById('downloadLink');
@@ -33,6 +28,8 @@ async function encryptFile() {
       downloadLink.download = file.name + '.encrypted';
       downloadLink.innerHTML = `Download ${file.name}.encrypted`;
       downloadLink.style.display = 'block';
+      // Show success message
+      alert('Encrypted Successfully');
     } else {
       alert('Encryption failed. Please try again.');
     }
@@ -40,6 +37,7 @@ async function encryptFile() {
     document.getElementById('encryptionProgress').style.display = 'none';
   };
   reader.readAsArrayBuffer(file);
+  passwordInput.value = '';
 }
 
 async function decryptFile() {
@@ -67,25 +65,27 @@ async function decryptFile() {
     try {
       const decryptedData = await decrypt(event.target.result, password);
       if (decryptedData !== null) {
-        // Decompress the decrypted data
-        const decompressedData = pako.inflate(decryptedData);
-        const blob = new Blob([decompressedData], { type: 'application/octet-stream' });
+        const blob = new Blob([decryptedData], { type: 'application/octet-stream' });
         const downloadLink = document.getElementById('downloadLink');
         downloadLink.href = URL.createObjectURL(blob);
         downloadLink.download = file.name.replace('.encrypted', '');
         downloadLink.innerHTML = `Download ${file.name.replace('.encrypted', '')}`;
         downloadLink.style.display = 'block';
+        // Show success message
+        alert('Decrypted Successfully');
+      } else {
+        alert('Decryption failed. Incorrect password or invalid file format.');
       }
     } catch (error) {
-      // Show warning message if decryption fails
-      alert('Please check the password you provided!');
+      console.error('Decryption error:', error);
+      alert('Decryption failed. Incorrect password or invalid file format.');
     }
     // Hide progress indicator after decryption
     document.getElementById('decryptionProgress').style.display = 'none';
   };
   reader.readAsArrayBuffer(file);
+  passwordInput.value = '';
 }
-
 
 async function encrypt(data, password) {
   const encoder = new TextEncoder();
@@ -123,40 +123,46 @@ async function encrypt(data, password) {
 }
 
 async function decrypt(data, password) {
-  const encoder = new TextEncoder();
-  const encodedPassword = encoder.encode(password);
-  const key = await crypto.subtle.importKey(
-    'raw',
-    encodedPassword,
-    'PBKDF2',
-    false,
-    ['deriveBits', 'deriveKey']
-  );
-  const salt = data.slice(0, 16);
-  const iv = data.slice(16, 16 + 12);
-  const encryptedData = data.slice(16 + 12);
-  const derivedKey = await crypto.subtle.deriveKey(
-    {
-      name: 'PBKDF2',
-      salt: salt,
-      iterations: 100000,
-      hash: 'SHA-256',
-    },
-    key,
-    { name: 'AES-GCM', length: 256 },
-    true,
-    ['decrypt']
-  );
-  const decryptedData = await crypto.subtle.decrypt(
-    {
-      name: 'AES-GCM',
-      iv: iv,
-    },
-    derivedKey,
-    encryptedData
-  );
-  return decryptedData;
+  try {
+    const encoder = new TextEncoder();
+    const encodedPassword = encoder.encode(password);
+    const key = await crypto.subtle.importKey(
+      'raw',
+      encodedPassword,
+      'PBKDF2',
+      false,
+      ['deriveBits', 'deriveKey']
+    );
+    const salt = data.slice(0, 16);
+    const iv = data.slice(16, 16 + 12);
+    const encryptedData = data.slice(16 + 12);
+    const derivedKey = await crypto.subtle.deriveKey(
+      {
+        name: 'PBKDF2',
+        salt: salt,
+        iterations: 100000,
+        hash: 'SHA-256',
+      },
+      key,
+      { name: 'AES-GCM', length: 256 },
+      true,
+      ['decrypt']
+    );
+    const decryptedData = await crypto.subtle.decrypt(
+      {
+        name: 'AES-GCM',
+        iv: iv,
+      },
+      derivedKey,
+      encryptedData
+    );
+    return decryptedData;
+  } catch (error) {
+    console.error('Decryption error:', error);
+    throw error;
+  }
 }
+
 function generateRandomPassword() {
     var passwordInput = document.getElementById("passwordInput");
     var length = 12; // Change the length of the generated password as needed
@@ -167,7 +173,6 @@ function generateRandomPassword() {
     }
     passwordInput.value = password;
 }
-
 function togglePasswordVisibility() {
     var passwordInput = document.getElementById("passwordInput");
     var togglePasswordIcon = document.getElementById("togglePasswordIcon");
@@ -183,8 +188,13 @@ function togglePasswordVisibility() {
     }
 }
 function copyPassword() {
-  var passwordInput = document.getElementById("passwordInput");
-  passwordInput.select();
+  var password = document.getElementById("passwordInput").value;
+  var tempInput = document.createElement("input");
+  tempInput.setAttribute("type", "text");
+  tempInput.setAttribute("value", password);
+  document.body.appendChild(tempInput);
+  tempInput.select();
   document.execCommand("copy");
+  document.body.removeChild(tempInput);
   alert("Password copied to clipboard!");
 }
